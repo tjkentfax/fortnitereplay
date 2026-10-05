@@ -32,15 +32,14 @@ function parseReplay(filePath) {
   if (!fs.existsSync(filePath)) throw new Error(`Replay file not found: ${filePath}`);
   if (!/\.replay$/i.test(filePath)) throw new Error('Please select a Fortnite .replay file.');
   ensureDecoder();
-  let stdout;
   try {
-    stdout = runDotnet([DECODER_DLL, filePath]);
+    const stdout = runDotnet([DECODER_DLL, filePath]);
+    return JSON.parse(stdout);
   } catch (err) {
+    if (err instanceof SyntaxError) throw new Error('The decoder returned invalid JSON.');
     const detail = String(err?.stderr || err?.stdout || err?.message || err);
     throw new Error(`The native replay decoder could not parse this replay.\n\n${detail}`);
   }
-  try { return JSON.parse(stdout); }
-  catch { throw new Error(`The decoder returned invalid JSON.\n\n${stdout.slice(0, 4000)}`); }
 }
 
 ipcMain.handle('parse-replay', (_event, filePath) => {
@@ -56,6 +55,32 @@ ipcMain.handle('open-replay', async () => {
   return result.canceled ? null : result.filePaths[0];
 });
 
+function attachImporter(win) {
+  const script = `(()=>{
+    if(window.__nativeImporterInstalled)return;
+    window.__nativeImporterInstalled=true;
+    const input=document.querySelector('#file');
+    if(!input)return;
+    input.addEventListener('change',async(ev)=>{
+      const file=ev.target.files&&ev.target.files[0];
+      if(!file||!window.replayAPI)return;
+      const name=document.querySelector('#fileName'); if(name)name.textContent=file.name;
+      if(!/\\.replay$/i.test(file.name)){ if(typeof importFile==='function') return importFile(file); return; }
+      try{
+        if(typeof notice==='function')notice('Decoding replay','Reading the local Fortnite replay. This can take a little while on the first import.');
+        const result=await window.replayAPI.parseFile(file.path);
+        if(!result||!result.ok)throw new Error(result?.error||'Decoder failed.');
+        if(typeof setData!=='function')throw new Error('Dashboard importer is unavailable.');
+        setData(result.data,file.name);
+      }catch(err){
+        if(typeof notice==='function')notice('Replay decode failed',err.message||String(err));
+        else alert('Replay decode failed\\n\\n'+(err.message||err));
+      }
+    },true);
+  })()`;
+  win.webContents.executeJavaScript(script).catch(()=>{});
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1500,
@@ -70,6 +95,7 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(ROOT, 'index.html'));
+  win.webContents.once('did-finish-load', () => attachImporter(win));
 }
 
 app.whenReady().then(() => {
