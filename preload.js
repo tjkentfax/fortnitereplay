@@ -1,0 +1,2 @@
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('replayAPI',{parseFile:(filePath)=>ipcRenderer.invoke('parse-replay',filePath),openReplay:()=>ipcRenderer.invoke('open-replay')});
