@@ -1,1 +1,15 @@
-{"name":"fortnitereplay-local","version":"1.0.0","private":true,"description":"Local Fortnite replay analysis desktop app","main":"main.js","scripts":{"start":"electron .","dev":"electron ."},"dependencies":{"fortnite-replay-parser":"github:xNocken/replay-reader"},"devDependencies":{"electron":"^38.0.0"}}
+{
+  "name": "fortnitereplay-local",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Local Fortnite replay analysis desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build-decoder": "dotnet build decoder/ReplayExport.csproj -c Release"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}
